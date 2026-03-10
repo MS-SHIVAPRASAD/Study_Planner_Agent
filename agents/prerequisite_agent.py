@@ -11,9 +11,11 @@ class PrerequisiteAgent:
             course = item["course"]
             prereq = item["prerequisite"]
 
-            graph.add_node(course)
+            if course.strip():
 
-            if prereq:
-                graph.add_edge(prereq, course)
+                graph.add_node(course)
+
+                if prereq:
+                    graph.add_edge(prereq, course)
 
         return graph
