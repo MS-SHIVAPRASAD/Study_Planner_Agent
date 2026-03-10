@@ -156,26 +156,30 @@ for i in range(num_courses):
 
 if st.button("Start"):
 
-    payload = {
-        "courses": courses,
-        "max_courses_per_semester": 3,
-        "seed": 42
-    }
+    from agents.prerequisite_agent import PrerequisiteAgent
+    from agents.scheduler_agent import SchedulerAgent
+    from agents.validator_agent import ValidatorAgent
+    from metrics.evaluator import Evaluator
 
-    response = requests.post(
-        "http://127.0.0.1:8000/run_planner",
-        json=payload
-    )
+    prereq_agent = PrerequisiteAgent()
+    scheduler = SchedulerAgent()
+    validator = ValidatorAgent()
+    evaluator = Evaluator()
 
-    data = response.json()
+    # Build graph
+    graph = prereq_agent.run(courses)
 
-    # -------------------------
+    # Generate plan
+    plan = scheduler.run(graph, 3)
+
+    # Validate
+    validation = validator.run(plan)
+
+    # Metrics
+    metrics = evaluator.evaluate(plan)
+
     # Display Study Plan
-    # -------------------------
-
     st.subheader("📚 Generated Study Plan")
-
-    plan = data["plan"]
 
     for i, semester in enumerate(plan, start=1):
 
@@ -184,33 +188,16 @@ if st.button("Start"):
         for course in semester:
             st.markdown(f"- {course}")
 
-    # -------------------------
-    # Update State Machine
-    # -------------------------
+    # Update metrics
+    st.session_state.metrics["courses_planned"] = metrics["courses_planned"]
+    st.session_state.metrics["semesters_used"] = metrics["semesters_used"]
+    st.session_state.metrics["agent_calls"] = 3
 
-    st.session_state.state_history.append(
-        ("Completed", data["state"])
-    )
+    # Update logs
+    log_message("PrerequisiteAgent", "Graph built")
+    log_message("SchedulerAgent", "Schedule generated")
+    log_message("ValidatorAgent", "Plan validated")
 
-    # -------------------------
-    # Update Agent Logs
-    # -------------------------
-
-    for log in data["logs"]:
-        st.session_state.messages.append(
-            (
-                log["timestamp"],
-                log["agent"],
-                "Agent executed"
-            )
-        )
-
-    # -------------------------
-    # Update Metrics
-    # -------------------------
-
-    st.session_state.metrics["courses_planned"] = data["metrics"]["courses_planned"]
-    st.session_state.metrics["semesters_used"] = data["metrics"]["semesters_used"]
-    st.session_state.metrics["agent_calls"] = len(data["logs"])
+    log_state("COMPLETE")
 
     st.success("Study Plan Generated")
