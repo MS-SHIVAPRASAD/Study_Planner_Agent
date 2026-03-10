@@ -1,0 +1,9 @@
+course,prerequisite
+Programming Basics,
+Data Structures,Programming Basics
+Algorithms,Data Structures
+Linear Algebra,
+Machine Learning,Linear Algebra
+Deep Learning,Machine Learning
+Databases,Programming Basics
+Operating Systems,Data Structures
