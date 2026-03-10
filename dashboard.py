@@ -5,12 +5,6 @@ import random
 import requests
 from datetime import datetime
 
-response = requests.get("http://127.0.0.1:8000/run_planner")
-
-data = response.json()
-
-st.write(data)
-
 st.set_page_config(page_title="Personal Study Planner", layout="wide")
 
 # -------------------------
@@ -48,40 +42,6 @@ def log_message(agent, msg):
     timestamp = datetime.now().strftime("%H:%M:%S")
     st.session_state.messages.append((timestamp, agent, msg))
     st.session_state.metrics["agent_calls"] += 1
-
-def simulate_run(seed):
-    random.seed(seed)
-
-    states = [
-        "INIT",
-        "COLLECT_INPUT",
-        "BUILD_PREREQUISITE_GRAPH",
-        "PLAN_SCHEDULE",
-        "VALIDATE_PLAN",
-        "DISPLAY_OUTPUT",
-        "COMPLETE"
-    ]
-
-    agents = [
-        "InputAgent",
-        "PrerequisiteAgent",
-        "SchedulerAgent",
-        "ValidatorAgent"
-    ]
-
-    for i, state in enumerate(states):
-        st.session_state.active_agent = agents[min(i, len(agents)-1)]
-        log_state(state)
-
-        log_message(
-            st.session_state.active_agent,
-            f"Processing state {state}"
-        )
-
-        time.sleep(0.5)
-
-    st.session_state.metrics["courses_planned"] = random.randint(10, 25)
-    st.session_state.metrics["semesters_used"] = random.randint(4, 8)
 
 
 # -------------------------
@@ -166,7 +126,9 @@ metric3.metric(
 
 st.divider()
 
-import requests
+# -------------------------
+# User Input
+# -------------------------
 
 st.subheader("Enter Courses")
 
@@ -176,10 +138,10 @@ courses = []
 
 for i in range(num_courses):
 
-    col1, col2 = st.columns(2)
+    colA, colB = st.columns(2)
 
-    course = col1.text_input(f"Course {i+1}", key=f"course{i}")
-    prereq = col2.text_input(f"Prerequisite {i+1}", key=f"prereq{i}")
+    course = colA.text_input(f"Course {i+1}", key=f"course{i}")
+    prereq = colB.text_input(f"Prerequisite {i+1}", key=f"prereq{i}")
 
     if course:
         courses.append({
@@ -187,8 +149,9 @@ for i in range(num_courses):
             "prerequisite": prereq if prereq else None
         })
 
+
 # -------------------------
-# Run Controls
+# Run Planner
 # -------------------------
 
 if st.button("Start"):
@@ -205,27 +168,34 @@ if st.button("Start"):
     )
 
     data = response.json()
-    #----------
-    #Displaying
-    #----------
+
+    # -------------------------
+    # Display Study Plan
+    # -------------------------
 
     st.subheader("📚 Generated Study Plan")
 
-plan = data["plan"]
+    plan = data["plan"]
 
-for i, semester in enumerate(plan, start=1):
+    for i, semester in enumerate(plan, start=1):
 
-    st.markdown(f"### Semester {i}")
+        st.markdown(f"### Semester {i}")
 
-    for course in semester:
-        st.markdown(f"- {course}")
-        
-    # UPDATE STATE MACHINE
+        for course in semester:
+            st.markdown(f"- {course}")
+
+    # -------------------------
+    # Update State Machine
+    # -------------------------
+
     st.session_state.state_history.append(
         ("Completed", data["state"])
     )
 
-    # UPDATE AGENT LOGS
+    # -------------------------
+    # Update Agent Logs
+    # -------------------------
+
     for log in data["logs"]:
         st.session_state.messages.append(
             (
@@ -235,9 +205,12 @@ for i, semester in enumerate(plan, start=1):
             )
         )
 
-    # UPDATE METRICS
+    # -------------------------
+    # Update Metrics
+    # -------------------------
+
     st.session_state.metrics["courses_planned"] = data["metrics"]["courses_planned"]
     st.session_state.metrics["semesters_used"] = data["metrics"]["semesters_used"]
     st.session_state.metrics["agent_calls"] = len(data["logs"])
 
-st.success("Study Plan Generated")
+    st.success("Study Plan Generated")
