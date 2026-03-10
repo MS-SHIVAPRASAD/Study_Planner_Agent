@@ -8,8 +8,8 @@ class PrerequisiteAgent:
 
         for item in courses:
 
-            course = item.course
-            prereq = item.prerequisite
+            course = item["course"]
+            prereq = item["prerequisite"]
 
             graph.add_node(course)
 
