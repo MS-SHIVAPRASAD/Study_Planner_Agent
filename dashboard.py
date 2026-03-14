@@ -11,6 +11,8 @@ st.set_page_config(page_title="Personal Study Planner", layout="wide")
 # Session State
 # -------------------------
 
+if "plan" not in st.session_state:
+    st.session_state.plan = None
 if "state_history" not in st.session_state:
     st.session_state.state_history = []
 
@@ -156,48 +158,71 @@ for i in range(num_courses):
 
 if st.button("Start"):
 
-    from agents.prerequisite_agent import PrerequisiteAgent
-    from agents.scheduler_agent import SchedulerAgent
-    from agents.validator_agent import ValidatorAgent
-    from metrics.evaluator import Evaluator
+    if len(courses) == 0:
+        st.warning("⚠️ Please select or enter at least one subject before generating the study plan.")
 
-    prereq_agent = PrerequisiteAgent()
-    scheduler = SchedulerAgent()
-    validator = ValidatorAgent()
-    evaluator = Evaluator()
+    else:
+        # Clear previous logs
+        st.session_state.state_history = []
+        st.session_state.messages = []
 
-    # Build graph
-    graph = prereq_agent.run(courses)
+        from agents.prerequisite_agent import PrerequisiteAgent
+        from agents.scheduler_agent import SchedulerAgent
+        from agents.validator_agent import ValidatorAgent
+        from metrics.evaluator import Evaluator
+        from state_machine import PlannerStateMachine
 
-    # Generate plan
-    plan = scheduler.run(graph, 3)
+        sm = PlannerStateMachine()
 
-    # Validate
-    validation = validator.run(plan)
+        prereq_agent = PrerequisiteAgent()
+        scheduler = SchedulerAgent()
+        validator = ValidatorAgent()
+        evaluator = Evaluator()
 
-    # Metrics
-    metrics = evaluator.evaluate(plan)
+        # INIT → LOAD_DATA
+        sm.load_data()
+        log_state(sm.state)
 
-    # Display Study Plan
+        # Build graph
+        sm.build_graph()
+        graph = prereq_agent.run(courses)
+        log_message("PrerequisiteAgent", "Graph built")
+        log_state(sm.state)
+
+        # Generate plan
+        sm.schedule()
+        plan = scheduler.run(graph, 3)
+        log_message("SchedulerAgent", "Schedule generated")
+        log_state(sm.state)
+
+        # Validate
+        sm.validate()
+        validation = validator.run(plan)
+        log_message("ValidatorAgent", "Plan validated")
+        log_state(sm.state)
+
+        # Finish
+        sm.finish()
+        log_state(sm.state)
+
+        # Metrics
+        metrics = evaluator.evaluate(plan)
+
+        st.session_state.plan = plan
+
+        st.session_state.metrics["courses_planned"] = metrics["courses_planned"]
+        st.session_state.metrics["semesters_used"] = metrics["semesters_used"]
+        st.session_state.metrics["agent_calls"] = 3
+
+        st.success("Study Plan Generated")
+
+        st.rerun()
+
+if st.session_state.plan:
+
     st.subheader("📚 Generated Study Plan")
 
-    for i, semester in enumerate(plan, start=1):
-
+    for i, semester in enumerate(st.session_state.plan, start=1):
         st.markdown(f"### Semester {i}")
-
         for course in semester:
             st.markdown(f"- {course}")
-
-    # Update metrics
-    st.session_state.metrics["courses_planned"] = metrics["courses_planned"]
-    st.session_state.metrics["semesters_used"] = metrics["semesters_used"]
-    st.session_state.metrics["agent_calls"] = 3
-
-    # Update logs
-    log_message("PrerequisiteAgent", "Graph built")
-    log_message("SchedulerAgent", "Schedule generated")
-    log_message("ValidatorAgent", "Plan validated")
-
-    log_state("COMPLETE")
-
-    st.success("Study Plan Generated")
